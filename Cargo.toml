@@ -1,0 +1,24 @@
+[package]
+name = "dinglebit-store"
+version = "0.1.0"
+authors = ["Joshua Marsh (icub3d) <joshua@themarshians.com>"]
+edition = "2018"
+description = "simplified storage interface"
+repository = "https://github.com/dinglebit/store.rs"
+homepage = "https://www.dinglebit.com/"
+readme = "README.md"
+categories = ["config"]
+license = "MIT"
+documentation = "https://docs.rs/dinglebit-store"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bincode = "1.3.3"
+chrono = {version="0.4.19", features=["serde"]}
+serde = "1.0.125"
+serde_derive = "1.0.125"
+sha2 = "0.9.3"
+sled = "0.34.6"
+tempdir = "0.3.7"
