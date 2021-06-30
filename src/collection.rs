@@ -23,24 +23,21 @@ pub enum Error {
 
 /// A Collection contains serializable objects which are accessible by
 /// a key.
-pub trait Collection {
+pub trait Collection<'a, T>
+where
+    T: Serialize + DeserializeOwned + 'a,
+{
     /// Put the given value into the collection under the given
     /// key. If the key already exists, it's replaced with the given
     /// value and the old value is returned.
-    fn put<T>(&mut self, key: &str, value: T) -> Result<Option<T>>
-    where
-        T: Serialize + DeserializeOwned;
+    fn put(&mut self, key: &str, value: T) -> Result<Option<T>>;
 
     // Get the value associated with the given key.
-    fn get<T>(&mut self, key: &str) -> Result<Option<T>>
-    where
-        T: Serialize + DeserializeOwned;
+    fn get(&mut self, key: &str) -> Result<Option<T>>;
 
     /// Find all the files that have the given prefix and iterate over
     /// them.
-    fn prefix<'a, T>(&mut self, prefix: &str) -> Box<dyn Iterator<Item = Result<T>> + 'a>
-    where
-        T: Serialize + DeserializeOwned + 'a;
+    fn prefix(&mut self, prefix: &str) -> Box<dyn Iterator<Item = Result<T>> + 'a>;
 }
 
 /// Sled is an impementation of a Collection using Sled to store the objects.
@@ -60,11 +57,11 @@ impl Sled {
     }
 }
 
-impl Collection for Sled {
-    fn put<T>(&mut self, key: &str, value: T) -> Result<Option<T>>
-    where
-        T: Serialize + DeserializeOwned,
-    {
+impl<'a, T> Collection<'a, T> for Sled
+where
+    T: Serialize + DeserializeOwned + 'a,
+{
+    fn put(&mut self, key: &str, value: T) -> Result<Option<T>> {
         // Convert to JSON.
         let json = match to_string(&value) {
             Ok(str) => str,
@@ -94,10 +91,7 @@ impl Collection for Sled {
         Ok(Some(obj))
     }
 
-    fn get<T>(&mut self, key: &str) -> Result<Option<T>>
-    where
-        T: Serialize + DeserializeOwned,
-    {
+    fn get(&mut self, key: &str) -> Result<Option<T>> {
         // Get the value from the database.
         let ivec = match self.db.get(key.as_bytes()) {
             Err(err) => return Err(Error::SystemError(err.to_string())),
@@ -120,10 +114,7 @@ impl Collection for Sled {
         Ok(Some(json))
     }
 
-    fn prefix<'a, T>(&mut self, prefix: &str) -> Box<dyn Iterator<Item = Result<T>> + 'a>
-    where
-        T: Serialize + DeserializeOwned + 'a,
-    {
+    fn prefix(&mut self, prefix: &str) -> Box<dyn Iterator<Item = Result<T>> + 'a> {
         Box::new(SledIter {
             p: PhantomData,
             iter: self.db.scan_prefix(prefix.as_bytes()),
@@ -179,23 +170,20 @@ mod tests {
     #[test]
     fn collection_get_put() {
         let file = tempdir().expect("unable to make temp file");
-        let mut s = Sled::open(file.path().to_str().unwrap()).expect("failed to open with sled");
+        let mut s: Box<dyn Collection<'static, Person>> =
+            Box::new(Sled::open(file.path().to_str().unwrap()).expect("failed to open with sled"));
 
         let p = Person {
             name: "foo".to_string(),
         };
-        s.put::<Person>(p.name.as_str(), p.clone())
+        s.put(p.name.as_str(), p.clone())
             .expect("failed to put foo");
 
-        let r = s
-            .get::<Person>(p.name.as_str())
-            .expect("failed to get foo")
-            .unwrap();
+        let r = s.get(p.name.as_str()).expect("failed to get foo").unwrap();
         assert_eq!(p, r);
 
         assert_eq!(
-            s.get::<Person>("i don't exist")
-                .expect("failed to get non-existant"),
+            s.get("i don't exist").expect("failed to get non-existant"),
             None
         );
     }
@@ -203,7 +191,8 @@ mod tests {
     #[test]
     fn collection_prefix() {
         let file = tempdir().expect("unable to make temp file");
-        let mut s = Sled::open(file.path().to_str().unwrap()).expect("failed to open with sled");
+        let mut s: Box<dyn Collection<'static, Person>> =
+            Box::new(Sled::open(file.path().to_str().unwrap()).expect("failed to open with sled"));
 
         let pp = vec![
             Person {
@@ -224,12 +213,11 @@ mod tests {
         ];
 
         for p in pp {
-            s.put::<Person>(p.name.as_str(), p.clone())
-                .expect("failed to put");
+            s.put(p.name.as_str(), p.clone()).expect("failed to put");
         }
 
         let rr = s
-            .prefix::<Person>("bar/")
+            .prefix("bar/")
             .map(|r| r.expect("collecting"))
             .collect::<Vec<Person>>();
 
