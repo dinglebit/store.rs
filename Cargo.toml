@@ -1,10 +1,10 @@
 [package]
 name = "dinglebit-store"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Joshua Marsh (icub3d) <joshua@themarshians.com>"]
 edition = "2018"
 description = "simplified storage interface"
-repository = "https://git.themarshians.com/dinglebit/store.rs"
+repository = "https://github.com/dinglebit/store.rs"
 homepage = "https://www.dinglebit.com/"
 readme = "README.md"
 categories = ["database-implementations"]
